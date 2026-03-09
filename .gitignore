@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# next / build output
+.next/
+**/.next/
+out/
+dist/
+build/
+coverage/
+
+# env files
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript / lint cache
+*.tsbuildinfo
+.eslintcache
+
+# editor / OS
+.vscode/
+.cursor/
+.idea/
+.DS_Store
+Thumbs.db
+
+# deploy / local tooling
+.vercel/
+.turbo/

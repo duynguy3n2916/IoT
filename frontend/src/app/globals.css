@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  caret-color: transparent;
+}
+
+/* Bo tat ca thanh nhap nhay (caret) va outline khi click */
+*:focus {
+  outline: none !important;
+}
+*:focus-visible {
+  outline: none !important;
+}
+
+a,
+button {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+a:focus,
+button:focus {
+  outline: none;
+}
+a:focus-visible,
+button:focus-visible {
+  outline: none;
+}
+
+/* Hien caret chi trong input/textarea khi can go */
+input:focus,
+textarea:focus {
+  caret-color: auto;
+}
+
+/* Tranh hieu ung dien form khi click vao link/button */
+a, button, [role="button"] {
+  user-select: none;
+  -webkit-user-select: none;
+}
