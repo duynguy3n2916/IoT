@@ -33,6 +33,7 @@ export default function ActionHistoryPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [deviceTemp, setDeviceTemp] = useState("");
@@ -64,6 +65,7 @@ export default function ActionHistoryPage() {
     params.set("page", String(nextPage));
     params.set("limit", String(limit));
     if (deviceFilter) params.set("deviceKey", deviceFilter);
+    if (search) params.set("search", search.trim());
     if (statusFilter) params.set("status", statusFilter);
     if (from) params.set("from", new Date(from).toISOString());
     if (to) params.set("to", new Date(to).toISOString());
@@ -89,7 +91,7 @@ export default function ActionHistoryPage() {
   useEffect(() => {
     void loadPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceFilter, statusFilter, from, to]);
+  }, [deviceFilter, statusFilter, from, to, search]);
 
   const uiRows = useMemo(
     () =>
@@ -115,6 +117,12 @@ export default function ActionHistoryPage() {
   return (
     <div className="space-y-4">
       <Toolbar
+        searchPlaceholder="Tìm theo ID, tên hoặc mã thiết bị..."
+        searchValue={search}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
         right={
           <div className="relative" ref={filterRef}>
             <button

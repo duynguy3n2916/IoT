@@ -31,6 +31,7 @@ export default function DataSensorsPage() {
   const [sensorFilter, setSensorFilter] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [searchSensor, setSearchSensor] = useState("");
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [sensorTemp, setSensorTemp] = useState("");
@@ -106,6 +107,13 @@ export default function DataSensorsPage() {
   return (
     <div className="space-y-4">
       <Toolbar
+        searchPlaceholder="Tìm theo mã cảm biến (sensor_key)..."
+        searchValue={searchSensor}
+        onSearchChange={(value) => {
+          setSearchSensor(value);
+          setPage(1);
+          setSensorFilter(value.trim());
+        }}
         right={
           <div className="relative">
             <button

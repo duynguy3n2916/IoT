@@ -90,7 +90,7 @@ async function getSensorsData(req, res) {
      FROM sensor_readings sr
      INNER JOIN sensors s ON s.id = sr.sensor_id
      ${whereClause}
-     ORDER BY sr.read_at DESC
+     ORDER BY sr.read_at ASC
      LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );

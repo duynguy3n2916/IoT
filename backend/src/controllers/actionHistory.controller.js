@@ -11,6 +11,14 @@ async function getActionHistory(req, res) {
     filters.push("d.device_key = ?");
     params.push(String(req.query.deviceKey));
   }
+
+  if (req.query.search) {
+    const search = String(req.query.search).trim();
+    if (search) {
+      filters.push("(CAST(ah.id AS CHAR) = ? OR d.display_name LIKE ? OR d.device_key LIKE ?)");
+      params.push(search, `%${search}%`, `%${search}%`);
+    }
+  }
   if (req.query.status) {
     filters.push("ah.result_status = ?");
     params.push(String(req.query.status).toUpperCase());
