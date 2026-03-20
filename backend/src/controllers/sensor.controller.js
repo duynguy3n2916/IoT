@@ -55,8 +55,20 @@ async function getSensorsData(req, res) {
   const params = [];
 
   if (req.query.sensor) {
-    filters.push("s.sensor_key = ?");
-    params.push(String(req.query.sensor));
+    const sensor = String(req.query.sensor).trim();
+    const tokens = sensor.split(/\s+/).filter(Boolean);
+
+    // Match sensor_key exact, and display_name:
+    // - If input has multiple tokens (e.g. "độ ẩm"), require display_name contains ALL tokens.
+    // - If input is a single token (e.g. "độ"), allow substring match.
+    if (tokens.length <= 1) {
+      filters.push("(s.sensor_key = ? OR s.display_name LIKE ?)");
+      params.push(sensor, `%${sensor}%`);
+    } else {
+      const likeClauses = tokens.map(() => "s.display_name LIKE ?").join(" AND ");
+      filters.push(`(s.sensor_key = ? OR (${likeClauses}))`);
+      params.push(sensor, ...tokens.map((t) => `%${t}%`));
+    }
   }
   if (req.query.from) {
     filters.push("sr.read_at >= ?");
@@ -90,7 +102,7 @@ async function getSensorsData(req, res) {
      FROM sensor_readings sr
      INNER JOIN sensors s ON s.id = sr.sensor_id
      ${whereClause}
-     ORDER BY sr.read_at ASC
+     ORDER BY sr.read_at DESC
      LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );

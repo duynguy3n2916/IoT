@@ -45,8 +45,10 @@ export default function DataSensorsPage() {
     params.set("page", String(nextPage));
     params.set("limit", String(limit));
     if (sensorFilter) params.set("sensor", sensorFilter);
-    if (from) params.set("from", new Date(from).toISOString());
-    if (to) params.set("to", new Date(to).toISOString());
+    // Keep datetime-local value as-is to avoid timezone shifting
+    // Backend will parse it with `new Date(...)`.
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
     return `/api/sensors-data?${params.toString()}`;
   };
 
@@ -104,15 +106,151 @@ export default function DataSensorsPage() {
     setFilterOpen(false);
   };
 
+  const toDateTimeLocalValue = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  };
+
+  const extractDateTimeQuery = (
+    raw: string
+  ): { fromLocal: string; toLocal: string; sensorText: string } | null => {
+    const value = raw.trim();
+    if (!value) return null;
+
+    // Supported patterns can appear anywhere in the string
+    // - YYYY-MM-DD
+    // - YYYY-MM-DDTHH:mm (or with space)
+    const dateTime = /(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
+    const dateOnly = /(\d{4})-(\d{2})-(\d{2})/;
+
+    // - dd/MM/yyyy (supports non-padded day/month: 20/3/2026)
+    // - dd/MM/yyyy HH:mm (or with space)
+    const dateOnlyVn = /(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+    const dateTimeVn = /(\d{1,2})\/(\d{1,2})\/(\d{4})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/;
+
+    const m2 = value.match(dateTime);
+    if (m2) {
+      const matchedStr = m2[0];
+      const sensorText = value.replace(matchedStr, "").trim();
+
+      const y = Number(m2[1]);
+      const mo = Number(m2[2]);
+      const d = Number(m2[3]);
+      const h = Number(m2[4]);
+      const mi = Number(m2[5]);
+      const s = m2[6] ? Number(m2[6]) : 0;
+
+      const fromDate = new Date(y, mo - 1, d, h, mi, s, 0);
+      const toDate = new Date(fromDate.getTime() + 60 * 1000); // +/- 1 minute window
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        sensorText,
+      };
+    }
+
+    const m1 = value.match(dateOnly);
+    if (m1) {
+      const matchedStr = m1[0];
+      const sensorText = value.replace(matchedStr, "").trim();
+
+      const y = Number(m1[1]);
+      const mo = Number(m1[2]);
+      const d = Number(m1[3]);
+
+      const fromDate = new Date(y, mo - 1, d, 0, 0, 0, 0);
+      const toDate = new Date(y, mo - 1, d, 23, 59, 59, 999);
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        sensorText,
+      };
+    }
+
+    const mv2 = value.match(dateTimeVn);
+    if (mv2) {
+      const matchedStr = mv2[0];
+      const sensorText = value.replace(matchedStr, "").trim();
+
+      const d = Number(mv2[1]);
+      const mo = Number(mv2[2]);
+      const y = Number(mv2[3]);
+      const h = Number(mv2[4]);
+      const mi = Number(mv2[5]);
+      const s = mv2[6] ? Number(mv2[6]) : 0;
+
+      const fromDate = new Date(y, mo - 1, d, h, mi, s, 0);
+      const toDate = new Date(fromDate.getTime() + 60 * 1000); // +/- 1 minute window
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        sensorText,
+      };
+    }
+
+    const mv1 = value.match(dateOnlyVn);
+    if (mv1) {
+      const matchedStr = mv1[0];
+      const sensorText = value.replace(matchedStr, "").trim();
+
+      const d = Number(mv1[1]);
+      const mo = Number(mv1[2]);
+      const y = Number(mv1[3]);
+
+      const fromDate = new Date(y, mo - 1, d, 0, 0, 0, 0);
+      const toDate = new Date(y, mo - 1, d, 23, 59, 59, 999);
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        sensorText,
+      };
+    }
+
+    // Fallback: if user typed full ISO string that JS can parse
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      const fromDate = parsed;
+      const toDate = new Date(parsed.getTime() + 60 * 1000);
+      return { fromLocal: toDateTimeLocalValue(fromDate), toLocal: toDateTimeLocalValue(toDate), sensorText: "" };
+    }
+
+    return null;
+  };
+
   return (
     <div className="space-y-4">
       <Toolbar
-        searchPlaceholder="Tìm theo mã cảm biến (sensor_key)..."
+        searchPlaceholder="Tìm kiếm"
         searchValue={searchSensor}
         onSearchChange={(value) => {
           setSearchSensor(value);
+          const v = value.trim();
           setPage(1);
-          setSensorFilter(value.trim());
+
+          if (!v) {
+            setSensorFilter("");
+            setFrom("");
+            setTo("");
+            return;
+          }
+
+          const dtRange = extractDateTimeQuery(v);
+          if (dtRange) {
+            setSensorFilter(dtRange.sensorText);
+            setFrom(dtRange.fromLocal);
+            setTo(dtRange.toLocal);
+            return;
+          }
+
+          // Otherwise treat input as sensor name/key
+          setSensorFilter(v);
+          setFrom("");
+          setTo("");
         }}
         right={
           <div className="relative">

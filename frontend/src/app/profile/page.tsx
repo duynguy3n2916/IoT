@@ -1,5 +1,4 @@
-import { Link as LinkIcon, Github, FileText } from "lucide-react";
-import { LinkCard } from "@/components/ui";
+import { Figma, Github, FileCode2, FileText } from "lucide-react";
 
 export default function ProfilePage() {
   return (
@@ -15,9 +14,58 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="md:ml-auto w-full md:max-w-lg space-y-4">
-          <LinkCard icon={<LinkIcon size={22} />} label="Figma" />
-          <LinkCard icon={<Github size={22} />} label="Github" />
-          <LinkCard icon={<FileText size={22} />} label="PDF" />
+          <a
+            href="https://www.figma.com/design/4isBXQC4C1NAMd3NQtHzk3/IoT?node-id=0-1&p=f&t=FMMmVRKi0OCeeCKM-0"
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 text-left hover:bg-zinc-50"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-50 ring-2 ring-zinc-200">
+                <Figma size={22} className="text-zinc-900" />
+              </div>
+              <div className="text-base font-bold text-zinc-900 lg:text-lg">Figma</div>
+            </div>
+          </a>
+          <a
+            href="https://github.com/duynguy3n2916/IoT"
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 text-left hover:bg-zinc-50"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-50 ring-2 ring-zinc-200">
+                <Github size={22} className="text-zinc-900" />
+              </div>
+              <div className="text-base font-bold text-zinc-900 lg:text-lg">Github</div>
+            </div>
+          </a>
+          <a
+            href="PUT_PDF_LINK_HERE"
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 text-left hover:bg-zinc-50"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-50 ring-2 ring-zinc-200">
+                <FileText size={22} className="text-zinc-900" />
+              </div>
+              <div className="text-base font-bold text-zinc-900 lg:text-lg">PDF</div>
+            </div>
+          </a>
+          <a
+            href="https://bipbeo123456-5548511.postman.co/workspace/817dd4fa-fcc0-42e8-86e9-05829493dc72/documentation/53338086-8d48f2e1-152d-469d-aabf-54b0da46a0d2"
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 text-left hover:bg-zinc-50"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-50 ring-2 ring-zinc-200">
+                <FileCode2 size={22} className="text-zinc-900" />
+              </div>
+              <div className="text-base font-bold text-zinc-900 lg:text-lg">API Docs</div>
+            </div>
+          </a>
         </div>
       </div>
     </div>

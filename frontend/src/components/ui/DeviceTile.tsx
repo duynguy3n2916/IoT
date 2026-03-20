@@ -30,8 +30,7 @@ export function DeviceTile({
         )}>{state ? "ON" : "OFF"}</div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between">
-        <div className="text-sm text-zinc-500">Toggle</div>
+      <div className="mt-5 flex items-center justify-end">
         <button
           type="button"
           onClick={() => onToggle(!state)}

@@ -22,7 +22,6 @@ function createApp({ io, mqttClient }) {
   app.use("/api", apiRouter);
 
   app.use((error, _req, res, _next) => {
-    // eslint-disable-next-line no-console
     console.error("[API] uncaught error:", error);
     res.status(500).json({ message: "Internal server error" });
   });

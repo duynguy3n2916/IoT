@@ -33,7 +33,10 @@ export default function ActionHistoryPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
-  const [search, setSearch] = useState<string>("");
+  // searchInput: giữ đúng text người dùng đang gõ.
+  // searchQuery: phần gửi backend để match (sau khi đã tách ngày/giờ nếu có).
+  const [searchInput, setSearchInput] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [deviceTemp, setDeviceTemp] = useState("");
@@ -60,15 +63,136 @@ export default function ActionHistoryPage() {
     setFilterOpen(false);
   };
 
+  const toDateTimeLocalValue = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  };
+
+  const extractDateTimeQuery = (
+    raw: string
+  ): { fromLocal: string; toLocal: string; searchText: string } | null => {
+    const value = raw.trim();
+    if (!value) return null;
+
+    // Supported patterns can appear anywhere in the string:
+    // - YYYY-MM-DD
+    // - YYYY-MM-DDTHH:mm
+    // - dd/MM/yyyy
+    // - dd/MM/yyyy HH:mm
+    const dateTimeEn = /(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
+    const dateOnlyEn = /(\d{4})-(\d{2})-(\d{2})/;
+    const dateTimeVn = /(\d{1,2})\/(\d{1,2})\/(\d{4})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/;
+    const dateOnlyVn = /(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+
+    const m2 = value.match(dateTimeEn);
+    if (m2) {
+      const matchedStr = m2[0];
+      const searchText = value.replace(matchedStr, "").trim();
+
+      const y = Number(m2[1]);
+      const mo = Number(m2[2]);
+      const d = Number(m2[3]);
+      const h = Number(m2[4]);
+      const mi = Number(m2[5]);
+      const s = m2[6] ? Number(m2[6]) : 0;
+
+      const fromDate = new Date(y, mo - 1, d, h, mi, s, 0);
+      const toDate = new Date(fromDate.getTime() + 60 * 1000); // +/- 1 minute window
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        searchText,
+      };
+    }
+
+    const m1 = value.match(dateOnlyEn);
+    if (m1) {
+      const matchedStr = m1[0];
+      const searchText = value.replace(matchedStr, "").trim();
+
+      const y = Number(m1[1]);
+      const mo = Number(m1[2]);
+      const d = Number(m1[3]);
+
+      const fromDate = new Date(y, mo - 1, d, 0, 0, 0, 0);
+      const toDate = new Date(y, mo - 1, d, 23, 59, 59, 999);
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        searchText,
+      };
+    }
+
+    const mv2 = value.match(dateTimeVn);
+    if (mv2) {
+      const matchedStr = mv2[0];
+      const searchText = value.replace(matchedStr, "").trim();
+
+      const d = Number(mv2[1]);
+      const mo = Number(mv2[2]);
+      const y = Number(mv2[3]);
+      const h = Number(mv2[4]);
+      const mi = Number(mv2[5]);
+      const s = mv2[6] ? Number(mv2[6]) : 0;
+
+      const fromDate = new Date(y, mo - 1, d, h, mi, s, 0);
+      const toDate = new Date(fromDate.getTime() + 60 * 1000);
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        searchText,
+      };
+    }
+
+    const mv1 = value.match(dateOnlyVn);
+    if (mv1) {
+      const matchedStr = mv1[0];
+      const searchText = value.replace(matchedStr, "").trim();
+
+      const d = Number(mv1[1]);
+      const mo = Number(mv1[2]);
+      const y = Number(mv1[3]);
+
+      const fromDate = new Date(y, mo - 1, d, 0, 0, 0, 0);
+      const toDate = new Date(y, mo - 1, d, 23, 59, 59, 999);
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        searchText,
+      };
+    }
+
+    // Fallback: if user typed ISO string that JS can parse
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      const fromDate = parsed;
+      const toDate = new Date(parsed.getTime() + 60 * 1000);
+      return {
+        fromLocal: toDateTimeLocalValue(fromDate),
+        toLocal: toDateTimeLocalValue(toDate),
+        searchText: "",
+      };
+    }
+
+    return null;
+  };
+
   const buildQuery = (nextPage: number) => {
     const params = new URLSearchParams();
     params.set("page", String(nextPage));
     params.set("limit", String(limit));
     if (deviceFilter) params.set("deviceKey", deviceFilter);
-    if (search) params.set("search", search.trim());
+    if (searchQuery) params.set("search", searchQuery.trim());
     if (statusFilter) params.set("status", statusFilter);
-    if (from) params.set("from", new Date(from).toISOString());
-    if (to) params.set("to", new Date(to).toISOString());
+    // Keep datetime-local value as-is to avoid timezone shifting
+    // Backend will parse it with `new Date(...)`.
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
     return `/api/action-history?${params.toString()}`;
   };
 
@@ -91,7 +215,7 @@ export default function ActionHistoryPage() {
   useEffect(() => {
     void loadPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceFilter, statusFilter, from, to, search]);
+  }, [deviceFilter, statusFilter, from, to, searchQuery]);
 
   const uiRows = useMemo(
     () =>
@@ -117,11 +241,31 @@ export default function ActionHistoryPage() {
   return (
     <div className="space-y-4">
       <Toolbar
-        searchPlaceholder="Tìm theo ID, tên hoặc mã thiết bị..."
-        searchValue={search}
+        searchPlaceholder="Tìm kiếm"
+        searchValue={searchInput}
         onSearchChange={(value) => {
-          setSearch(value);
           setPage(1);
+
+          const v = value.trim();
+          if (!v) {
+            setSearchInput("");
+            setSearchQuery("");
+            setFrom("");
+            setTo("");
+            return;
+          }
+
+          const dtRange = extractDateTimeQuery(v);
+          if (dtRange) {
+            setSearchInput(value);
+            setSearchQuery(dtRange.searchText);
+            setFrom(dtRange.fromLocal);
+            setTo(dtRange.toLocal);
+            return;
+          }
+
+          setSearchInput(value);
+          setSearchQuery(value);
         }}
         right={
           <div className="relative" ref={filterRef}>

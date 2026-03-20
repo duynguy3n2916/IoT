@@ -81,6 +81,32 @@ async function controlDevice(req, res) {
     });
   });
 
+  // Nếu sau 10s vẫn chưa có phản hồi từ thiết bị thì tự động đánh dấu FAILED
+  setTimeout(async () => {
+    try {
+      const [rows] = await pool.query(
+        "SELECT result_status FROM action_history WHERE id = ? LIMIT 1",
+        [actionId]
+      );
+      if (!rows.length) return;
+      if (rows[0].result_status !== "WAITING") return;
+
+      await pool.query(
+        "UPDATE action_history SET result_status = 'FAILED', message = ? WHERE id = ?",
+        ["Timeout waiting for device response", actionId]
+      );
+
+      io.emit("device_status", {
+        deviceKey: device.device_key,
+        state: "TIMEOUT",
+        at: new Date().toISOString(),
+      });
+    } catch (error) {
+      
+      console.error("[API] timeout update error:", error.message);
+    }
+  }, 10_000);
+
   return res.status(202).json({
     actionId,
     deviceKey: device.device_key,
