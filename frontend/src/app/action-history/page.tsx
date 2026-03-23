@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Filter } from "lucide-react";
 import { Toolbar, TableShell, StatusPill } from "@/components/ui";
-import { apiFetch } from "@/lib";
+import { apiFetch, extractDateTimeFromSearch } from "@/lib";
 import { cn } from "@/lib/utils";
 
 type ActionHistoryResponse = {
@@ -25,7 +25,7 @@ type ActionHistoryResponse = {
 export default function ActionHistoryPage() {
   const [rows, setRows] = useState<ActionHistoryResponse["items"]>([]);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(9);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,125 +61,6 @@ export default function ActionHistoryPage() {
     setFrom(fromTemp);
     setTo(toTemp);
     setFilterOpen(false);
-  };
-
-  const toDateTimeLocalValue = (d: Date) => {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    const mm = pad(d.getMonth() + 1);
-    const dd = pad(d.getDate());
-    const hh = pad(d.getHours());
-    const mi = pad(d.getMinutes());
-    return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-  };
-
-  const extractDateTimeQuery = (
-    raw: string
-  ): { fromLocal: string; toLocal: string; searchText: string } | null => {
-    const value = raw.trim();
-    if (!value) return null;
-
-    // Supported patterns can appear anywhere in the string:
-    // - YYYY-MM-DD
-    // - YYYY-MM-DDTHH:mm
-    // - dd/MM/yyyy
-    // - dd/MM/yyyy HH:mm
-    const dateTimeEn = /(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
-    const dateOnlyEn = /(\d{4})-(\d{2})-(\d{2})/;
-    const dateTimeVn = /(\d{1,2})\/(\d{1,2})\/(\d{4})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/;
-    const dateOnlyVn = /(\d{1,2})\/(\d{1,2})\/(\d{4})/;
-
-    const m2 = value.match(dateTimeEn);
-    if (m2) {
-      const matchedStr = m2[0];
-      const searchText = value.replace(matchedStr, "").trim();
-
-      const y = Number(m2[1]);
-      const mo = Number(m2[2]);
-      const d = Number(m2[3]);
-      const h = Number(m2[4]);
-      const mi = Number(m2[5]);
-      const s = m2[6] ? Number(m2[6]) : 0;
-
-      const fromDate = new Date(y, mo - 1, d, h, mi, s, 0);
-      const toDate = new Date(fromDate.getTime() + 60 * 1000); // +/- 1 minute window
-      return {
-        fromLocal: toDateTimeLocalValue(fromDate),
-        toLocal: toDateTimeLocalValue(toDate),
-        searchText,
-      };
-    }
-
-    const m1 = value.match(dateOnlyEn);
-    if (m1) {
-      const matchedStr = m1[0];
-      const searchText = value.replace(matchedStr, "").trim();
-
-      const y = Number(m1[1]);
-      const mo = Number(m1[2]);
-      const d = Number(m1[3]);
-
-      const fromDate = new Date(y, mo - 1, d, 0, 0, 0, 0);
-      const toDate = new Date(y, mo - 1, d, 23, 59, 59, 999);
-      return {
-        fromLocal: toDateTimeLocalValue(fromDate),
-        toLocal: toDateTimeLocalValue(toDate),
-        searchText,
-      };
-    }
-
-    const mv2 = value.match(dateTimeVn);
-    if (mv2) {
-      const matchedStr = mv2[0];
-      const searchText = value.replace(matchedStr, "").trim();
-
-      const d = Number(mv2[1]);
-      const mo = Number(mv2[2]);
-      const y = Number(mv2[3]);
-      const h = Number(mv2[4]);
-      const mi = Number(mv2[5]);
-      const s = mv2[6] ? Number(mv2[6]) : 0;
-
-      const fromDate = new Date(y, mo - 1, d, h, mi, s, 0);
-      const toDate = new Date(fromDate.getTime() + 60 * 1000);
-      return {
-        fromLocal: toDateTimeLocalValue(fromDate),
-        toLocal: toDateTimeLocalValue(toDate),
-        searchText,
-      };
-    }
-
-    const mv1 = value.match(dateOnlyVn);
-    if (mv1) {
-      const matchedStr = mv1[0];
-      const searchText = value.replace(matchedStr, "").trim();
-
-      const d = Number(mv1[1]);
-      const mo = Number(mv1[2]);
-      const y = Number(mv1[3]);
-
-      const fromDate = new Date(y, mo - 1, d, 0, 0, 0, 0);
-      const toDate = new Date(y, mo - 1, d, 23, 59, 59, 999);
-      return {
-        fromLocal: toDateTimeLocalValue(fromDate),
-        toLocal: toDateTimeLocalValue(toDate),
-        searchText,
-      };
-    }
-
-    // Fallback: if user typed ISO string that JS can parse
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) {
-      const fromDate = parsed;
-      const toDate = new Date(parsed.getTime() + 60 * 1000);
-      return {
-        fromLocal: toDateTimeLocalValue(fromDate),
-        toLocal: toDateTimeLocalValue(toDate),
-        searchText: "",
-      };
-    }
-
-    return null;
   };
 
   const buildQuery = (nextPage: number) => {
@@ -255,10 +136,10 @@ export default function ActionHistoryPage() {
             return;
           }
 
-          const dtRange = extractDateTimeQuery(v);
+          const dtRange = extractDateTimeFromSearch(v);
           if (dtRange) {
             setSearchInput(value);
-            setSearchQuery(dtRange.searchText);
+            setSearchQuery(dtRange.remainderText);
             setFrom(dtRange.fromLocal);
             setTo(dtRange.toLocal);
             return;
@@ -362,7 +243,7 @@ export default function ActionHistoryPage() {
               <button
                 type="button"
                 className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-zinc-50"
-                onClick={() => void loadPage(1)}
+                onClick={() => void loadPage(Math.max(1, page - 1))}
                 disabled={page <= 1}
               >
                 Trước

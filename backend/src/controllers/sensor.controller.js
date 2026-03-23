@@ -58,9 +58,6 @@ async function getSensorsData(req, res) {
     const sensor = String(req.query.sensor).trim();
     const tokens = sensor.split(/\s+/).filter(Boolean);
 
-    // Match sensor_key exact, and display_name:
-    // - If input has multiple tokens (e.g. "độ ẩm"), require display_name contains ALL tokens.
-    // - If input is a single token (e.g. "độ"), allow substring match.
     if (tokens.length <= 1) {
       filters.push("(s.sensor_key = ? OR s.display_name LIKE ?)");
       params.push(sensor, `%${sensor}%`);

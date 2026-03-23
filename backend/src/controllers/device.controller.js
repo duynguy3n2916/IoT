@@ -37,7 +37,6 @@ async function syncDevicesToHardware(req, res) {
 async function controlDevice(req, res) {
   const io = req.app.locals.io;
   const mqttClient = req.app.locals.mqttClient;
-
   const deviceKey = String(req.body?.deviceKey || "").trim();
   const state = String(req.body?.state || "").trim().toUpperCase();
 

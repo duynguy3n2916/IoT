@@ -16,7 +16,12 @@ export function useMqtt() {
   const [error, setError] = useState<string | null>(null);
   const [sensorData, setSensorData] = useState<SensorData>({});
   const [chartHistory, setChartHistory] = useState<Array<Record<string, number>>>([]);
-  const historyRef = useRef<Array<Record<string, number>>>([]);
+  type Sample = { at: number; temp?: number; hum?: number; lux?: number };
+  const historyRef = useRef<Array<Sample>>([]);
+  // 30 diem tuong trung cho ~1 phut gan nhat (~60s), moi diem ~2 giay.
+  const MAX_CHART_POINTS = 30;
+  const WINDOW_MS = 60_000;
+  const STEP_MS = Math.floor(WINDOW_MS / MAX_CHART_POINTS);
 
   useEffect(() => {
     let mqttClient: MqttClient | null = null;
@@ -65,15 +70,48 @@ export function useMqtt() {
 
             if (Object.keys(data).length > 0) {
               setSensorData(data);
-              const t = historyRef.current.length;
-              historyRef.current.push({
-                t,
-                temp: data.temp ?? 0,
-                hum: data.hum ?? 0,
-                lux: data.lux ?? 0,
-              });
-              if (historyRef.current.length > 24) historyRef.current.shift();
-              setChartHistory([...historyRef.current]);
+
+              const now = Date.now();
+              historyRef.current.push({ at: now, ...data });
+
+              // Can giu mau trong cua so thoi gian gan nhat.
+              const minAt = now - WINDOW_MS - STEP_MS;
+              historyRef.current = historyRef.current.filter((s) => s.at >= minAt);
+
+              // Resample ve dung MAX_CHART_POINTS bin theo thoi gian de luon hien 30 diem.
+              const start = now - WINDOW_MS;
+              let lastTemp = 0;
+              let lastHum = 0;
+              let lastLux = 0;
+
+              // historyRef.current duoc push theo thoi gian tang dan, nhung filter co the giu nguyen thu tu.
+              let sampleIdx = 0;
+              const samples = historyRef.current;
+
+              const bins: Array<Record<string, number>> = [];
+              for (let i = 0; i < MAX_CHART_POINTS; i++) {
+                const binStart = start + i * STEP_MS;
+                const binEnd = start + (i + 1) * STEP_MS;
+                // Dung cho tooltip: hiển thị "thời gian đại diện" của bin (midpoint)
+                const binTs = Math.floor((binStart + binEnd) / 2);
+                while (sampleIdx < samples.length && samples[sampleIdx].at <= binEnd) {
+                  const s = samples[sampleIdx];
+                  if (s.temp !== undefined) lastTemp = s.temp;
+                  if (s.hum !== undefined) lastHum = s.hum;
+                  if (s.lux !== undefined) lastLux = s.lux;
+                  sampleIdx++;
+                }
+
+                bins.push({
+                  t: i + 1, // de tooltip hien ro la diem cuoi la 30
+                  ts: binTs,
+                  temp: lastTemp,
+                  hum: lastHum,
+                  lux: lastLux,
+                });
+              }
+
+              setChartHistory(bins);
             }
           } catch {
             // ignore parse errors

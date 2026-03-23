@@ -41,7 +41,7 @@ export default function ProfilePage() {
             </div>
           </a>
           <a
-            href="PUT_PDF_LINK_HERE"
+            href="https://docs.google.com/document/d/1Nh3KfikOe8oDApx-E_TYDO_7oq9KVhtzDI_w4weAwrw/edit?usp=sharing"
             target="_blank"
             rel="noreferrer"
             className="block w-full rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 text-left hover:bg-zinc-50"

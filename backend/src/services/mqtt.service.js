@@ -1,6 +1,8 @@
+
 const mqtt = require("mqtt");
 const { pool } = require("../config/db");
 const { env } = require("../config/env");
+
 
 function normalizeState(value) {
   const raw = String(value || "").trim().toUpperCase();
@@ -20,6 +22,7 @@ function parseStatusPayload(payloadText) {
   }
 }
 
+
 function parseDeviceKeyFromTopic(topic) {
   const parts = topic.split("/");
   if (parts.length >= 3 && parts[0] === "smarthome" && parts[2] === "status") {
@@ -27,6 +30,9 @@ function parseDeviceKeyFromTopic(topic) {
   }
   return null;
 }
+
+
+// LUỒNG CẢM BIẾN — topic sensor (JSON) -> sensor_readings + emit sensor_update
 
 async function ingestSensorPayload(payloadText, io) {
   let parsed;
@@ -44,6 +50,7 @@ async function ingestSensorPayload(payloadText, io) {
   const values = [];
   const latest = {};
 
+  // Map từng dòng cấu hình sensors
   for (const sensor of sensors) {
     const field = sensor.mqtt_field || sensor.sensor_key;
     const rawValue = parsed[field];
@@ -83,10 +90,13 @@ async function ingestSensorPayload(payloadText, io) {
   });
 }
 
+
+// LUỒNG TRẠNG THÁI THIẾT BỊ — topic .../status -> cập nhật devices + action_history
+
 async function processDeviceStatus(topic, payloadText, io, client) {
   const raw = String(payloadText || "").trim().toUpperCase();
 
-  // Thiết bị báo ONLINE -> khôi phục trạng thái từ last_known_state
+  // --- Nhánh ONLINE: thiết bị vừa lên mạng -> publish lại last_known_state xuống mqtt_set_topic ---
   if (raw === "ONLINE") {
     let deviceKey = parseDeviceKeyFromTopic(topic);
     if (!deviceKey) {
@@ -116,6 +126,7 @@ async function processDeviceStatus(topic, payloadText, io, client) {
     return;
   }
 
+  // --- Nhánh ON/OFF: cập nhật last_known_state, đóng bản ghi action_history WAITING nếu có ---
   const state = parseStatusPayload(payloadText);
   if (!state) return;
 
@@ -171,6 +182,10 @@ async function processDeviceStatus(topic, payloadText, io, client) {
   });
 }
 
+
+// ENTRY — kết nối broker, subscribe, phân loại message -> ingestSensor / processStatus
+// Trả về mqtt client để device.controller publish lệnh điều khiển.
+
 function createMqttBridge(io) {
   const client = mqtt.connect(env.mqtt.url, {
     username: env.mqtt.username,
@@ -182,19 +197,19 @@ function createMqttBridge(io) {
   client.on("connect", () => {
     client.subscribe(env.mqtt.sensorTopic);
     client.subscribe(env.mqtt.statusWildcard);
-    // eslint-disable-next-line no-console
+    
     console.log(
       `[MQTT] connected and subscribed: ${env.mqtt.sensorTopic}, ${env.mqtt.statusWildcard}`
     );
   });
 
   client.on("reconnect", () => {
-    // eslint-disable-next-line no-console
+    
     console.log("[MQTT] reconnecting...");
   });
 
   client.on("error", (err) => {
-    // eslint-disable-next-line no-console
+
     console.error("[MQTT] error:", err.message);
   });
 
@@ -207,7 +222,7 @@ function createMqttBridge(io) {
         await processDeviceStatus(topic, payloadText, io, client);
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
+
       console.error("[MQTT] message handling error:", error.message);
     }
   });

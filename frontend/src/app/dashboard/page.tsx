@@ -7,9 +7,9 @@ import { useMqttContext } from "@/contexts/MqttProvider";
 import { apiFetch } from "@/lib";
 
 const FALLBACK_DATA: Array<Record<string, number>> = [];
-for (let i = 0; i < 24; i++) {
+for (let i = 0; i < 30; i++) {
   FALLBACK_DATA.push({
-    t: i,
+    t: i + 1,
     temp: 23 + Math.sin(i / 4) * 2,
     hum: 55 + Math.cos(i / 5) * 6,
     lux: 700 + Math.sin(i / 3) * 150,
@@ -56,9 +56,13 @@ export default function DashboardPage() {
   }, []);
 
   const data = useMemo(() => {
+    // Khi chua co du lieu thuc te (chartHistory rong):
+    // - Neu da ket noi MQTT thi de bieu do trong, cho den khi cam mach/bat dau publish data.
+    // - Neu chua ket noi MQTT thi van show du lieu gia lap de UI khong qua trong.
     if (chartHistory && chartHistory.length > 0) return chartHistory;
-    return FALLBACK_DATA;
-  }, [chartHistory]);
+    if (!connected) return FALLBACK_DATA;
+    return [];
+  }, [chartHistory, connected]);
 
   const latest = data[data.length - 1];
   const temp = sensorData?.temp ?? latest?.temp ?? 23;
